@@ -193,10 +193,11 @@ RestAccessDeniedHandler accessDeniedHandler
                 )
                 .access(
                     scopeAndRoles(
-                        "Catalogo.Leer",
-                        "Admin",
-                        "Operador"
-                    )
+    "Catalogo.Leer",
+    "Admin",
+    "Operador",
+    "Cliente"
+)
                 )
 
 
