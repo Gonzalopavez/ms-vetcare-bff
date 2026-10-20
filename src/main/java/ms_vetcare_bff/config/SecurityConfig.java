@@ -2,6 +2,8 @@ package ms_vetcare_bff.config;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -31,13 +33,26 @@ import ms_vetcare_bff.security.RestAuthenticationEntryPoint;
 @Configuration
 public class SecurityConfig {
 
+    /*
+     * Orígenes permitidos por CORS.
+     *
+     * Se configuran con la propiedad
+     * vetcare.cors.allowed-origins
+     * (variable de entorno VETCARE_CORS_ALLOWED_ORIGINS),
+     * separados por coma.
+     *
+     * Por defecto solo se permite el entorno local.
+     */
+    @Value("${vetcare.cors.allowed-origins:http://localhost:4200}")
+    private List<String> allowedOrigins;
+
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-JwtAuthenticationConverter jwtAuthenticationConverter,
-CorsConfigurationSource corsConfigurationSource,
-RestAuthenticationEntryPoint authenticationEntryPoint,
-RestAccessDeniedHandler accessDeniedHandler
+            JwtAuthenticationConverter jwtAuthenticationConverter,
+            CorsConfigurationSource corsConfigurationSource,
+            RestAuthenticationEntryPoint authenticationEntryPoint,
+            RestAccessDeniedHandler accessDeniedHandler
     ) throws Exception {
 
         http
@@ -59,14 +74,14 @@ RestAccessDeniedHandler accessDeniedHandler
 
             .exceptionHandling(exception -> exception
 
-    .authenticationEntryPoint(
-        authenticationEntryPoint
-    )
+                .authenticationEntryPoint(
+                    authenticationEntryPoint
+                )
 
-    .accessDeniedHandler(
-        accessDeniedHandler
-    )
-)
+                .accessDeniedHandler(
+                    accessDeniedHandler
+                )
+            )
 
             .authorizeHttpRequests(auth -> auth
 
@@ -185,6 +200,7 @@ RestAccessDeniedHandler accessDeniedHandler
                  * Roles:
                  * Admin
                  * Operador
+                 * Cliente
                  */
                 .requestMatchers(
                     HttpMethod.GET,
@@ -193,11 +209,11 @@ RestAccessDeniedHandler accessDeniedHandler
                 )
                 .access(
                     scopeAndRoles(
-    "Catalogo.Leer",
-    "Admin",
-    "Operador",
-    "Cliente"
-)
+                        "Catalogo.Leer",
+                        "Admin",
+                        "Operador",
+                        "Cliente"
+                    )
                 )
 
 
@@ -266,22 +282,22 @@ RestAccessDeniedHandler accessDeniedHandler
             )
 
             .oauth2ResourceServer(oauth2 ->
-    oauth2
+                oauth2
 
-        .authenticationEntryPoint(
-            authenticationEntryPoint
-        )
+                    .authenticationEntryPoint(
+                        authenticationEntryPoint
+                    )
 
-        .accessDeniedHandler(
-            accessDeniedHandler
-        )
+                    .accessDeniedHandler(
+                        accessDeniedHandler
+                    )
 
-        .jwt(jwt ->
-            jwt.jwtAuthenticationConverter(
-                jwtAuthenticationConverter
-            )
-        )
-);
+                    .jwt(jwt ->
+                        jwt.jwtAuthenticationConverter(
+                            jwtAuthenticationConverter
+                        )
+                    )
+            );
 
         return http.build();
     }
@@ -328,10 +344,12 @@ RestAccessDeniedHandler accessDeniedHandler
         CorsConfiguration configuration =
             new CorsConfiguration();
 
+        /*
+         * Orígenes configurables:
+         * localhost (desarrollo) y Amplify (AWS).
+         */
         configuration.setAllowedOrigins(
-            List.of(
-                "http://localhost:4200"
-            )
+            allowedOrigins
         );
 
         configuration.setAllowedMethods(
