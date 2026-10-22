@@ -30,21 +30,29 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import ms_vetcare_bff.security.RestAccessDeniedHandler;
 import ms_vetcare_bff.security.RestAuthenticationEntryPoint;
 
+
 @Configuration
 public class SecurityConfig {
 
     /*
      * Orígenes permitidos por CORS.
      *
-     * Se configuran con la propiedad
-     * vetcare.cors.allowed-origins
-     * (variable de entorno VETCARE_CORS_ALLOWED_ORIGINS),
-     * separados por coma.
+     * LOCAL:
+     * http://localhost:4200
      *
-     * Por defecto solo se permite el entorno local.
+     * AWS:
+     * https://production.d3ry6yi9x6895b.amplifyapp.com
+     *
+     * También se puede reemplazar mediante:
+     * VETCARE_CORS_ALLOWED_ORIGINS
      */
-    @Value("${vetcare.cors.allowed-origins:http://localhost:4200}")
+    @Value(
+        "${vetcare.cors.allowed-origins:" +
+        "http://localhost:4200," +
+        "https://production.d3ry6yi9x6895b.amplifyapp.com}"
+    )
     private List<String> allowedOrigins;
+
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -56,12 +64,19 @@ public class SecurityConfig {
     ) throws Exception {
 
         http
+
+            /*
+             * CORS.
+             */
             .cors(cors ->
                 cors.configurationSource(
                     corsConfigurationSource
                 )
             )
 
+            /*
+             * API REST sin sesiones.
+             */
             .csrf(csrf ->
                 csrf.disable()
             )
@@ -72,6 +87,9 @@ public class SecurityConfig {
                 )
             )
 
+            /*
+             * Respuestas JSON para 401 y 403.
+             */
             .exceptionHandling(exception -> exception
 
                 .authenticationEntryPoint(
@@ -86,8 +104,17 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
 
                 /*
-                 * Endpoint público utilizado para
-                 * comprobar el estado del BFF.
+                 * Preflight CORS.
+                 */
+                .requestMatchers(
+                    HttpMethod.OPTIONS,
+                    "/**"
+                )
+                .permitAll()
+
+
+                /*
+                 * Health del BFF.
                  */
                 .requestMatchers(
                     "/actuator/health"
@@ -96,12 +123,12 @@ public class SecurityConfig {
 
 
                 /*
-                 * Endpoint del perfil autenticado.
+                 * ==============================
+                 * PERFIL AUTENTICADO
+                 * ==============================
                  *
-                 * El usuario debe poseer un Access Token
-                 * válido, pero no necesita un rol
-                 * específico para consultar su propio
-                 * perfil.
+                 * Cualquier usuario con JWT válido
+                 * puede consultar su perfil.
                  */
                 .requestMatchers(
                     HttpMethod.GET,
@@ -111,13 +138,14 @@ public class SecurityConfig {
 
 
                 /*
-                 * CONSULTAS
+                 * ==============================
+                 * CONSULTATIONS
+                 * ==============================
                  *
-                 * Listar consultas y obtener una
-                 * consulta por ID.
+                 * GET:
                  *
                  * Scope:
-                 * Consultas.Leer
+                 * Consultas.leer
                  *
                  * Roles:
                  * Admin
@@ -131,7 +159,7 @@ public class SecurityConfig {
                 )
                 .access(
                     scopeAndRoles(
-                        "Consultas.Leer",
+                        "Consultas.leer",
                         "Admin",
                         "Operador",
                         "Cliente"
@@ -140,7 +168,9 @@ public class SecurityConfig {
 
 
                 /*
-                 * Crear una consulta.
+                 * Crear consulta.
+                 *
+                 * POST /api/consultations
                  *
                  * Scope:
                  * Consultas.Escribir
@@ -163,8 +193,7 @@ public class SecurityConfig {
 
 
                 /*
-                 * Modificar el estado de
-                 * una consulta.
+                 * Cambiar estado.
                  *
                  * PUT
                  * /api/consultations/{id}/status
@@ -190,7 +219,9 @@ public class SecurityConfig {
 
 
                 /*
-                 * CATÁLOGO
+                 * ==============================
+                 * CATALOG
+                 * ==============================
                  *
                  * Consultar prestaciones.
                  *
@@ -201,6 +232,10 @@ public class SecurityConfig {
                  * Admin
                  * Operador
                  * Cliente
+                 *
+                 * Cliente necesita esta lectura
+                 * para poder seleccionar una
+                 * prestación al crear consulta.
                  */
                 .requestMatchers(
                     HttpMethod.GET,
@@ -241,8 +276,7 @@ public class SecurityConfig {
                 /*
                  * Modificar prestaciones.
                  *
-                 * PUT
-                 * /api/catalog/services/{id}
+                 * PUT /api/catalog/services/{id}
                  *
                  * Scope:
                  * Catalogo.Escribir
@@ -263,9 +297,33 @@ public class SecurityConfig {
 
 
                 /*
-                 * Cualquier otra URL bajo /api
-                 * queda bloqueada mientras no exista
-                 * una regla explícita.
+                 * ==============================
+                 * AUDIT
+                 * ==============================
+                 *
+                 * Audit actualmente no posee un
+                 * scope Auditoria.Leer propio.
+                 *
+                 * El acceso se controla mediante
+                 * el app role Auditor.
+                 *
+                 * El token sigue perteneciendo a
+                 * VetCare API y es validado por
+                 * Microsoft Entra ID.
+                 */
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/audit/events",
+                    "/api/audit/events/**"
+                )
+                .hasRole(
+                    "Auditor"
+                )
+
+
+                /*
+                 * Cualquier otra ruta /api
+                 * queda bloqueada.
                  */
                 .requestMatchers(
                     "/api/**"
@@ -274,13 +332,17 @@ public class SecurityConfig {
 
 
                 /*
-                 * Cualquier otro endpoint del BFF
-                 * también queda bloqueado por defecto.
+                 * El resto también queda
+                 * bloqueado por defecto.
                  */
                 .anyRequest()
                 .denyAll()
             )
 
+
+            /*
+             * Resource Server JWT.
+             */
             .oauth2ResourceServer(oauth2 ->
                 oauth2
 
@@ -299,16 +361,16 @@ public class SecurityConfig {
                     )
             );
 
+
         return http.build();
     }
 
 
     /*
-     * Construye una regla que exige
-     * simultáneamente:
+     * Exige simultáneamente:
      *
-     * 1. El scope solicitado.
-     * 2. Uno de los roles permitidos.
+     * 1. Scope correcto.
+     * 2. Al menos uno de los roles permitidos.
      *
      * Ejemplo:
      *
@@ -337,6 +399,11 @@ public class SecurityConfig {
     }
 
 
+    /*
+     * ==============================
+     * CORS
+     * ==============================
+     */
     @Bean
     public CorsConfigurationSource
         corsConfigurationSource() {
@@ -344,13 +411,11 @@ public class SecurityConfig {
         CorsConfiguration configuration =
             new CorsConfiguration();
 
-        /*
-         * Orígenes configurables:
-         * localhost (desarrollo) y Amplify (AWS).
-         */
+
         configuration.setAllowedOrigins(
             allowedOrigins
         );
+
 
         configuration.setAllowedMethods(
             List.of(
@@ -363,6 +428,7 @@ public class SecurityConfig {
             )
         );
 
+
         configuration.setAllowedHeaders(
             List.of(
                 "Authorization",
@@ -370,53 +436,72 @@ public class SecurityConfig {
             )
         );
 
+
         configuration.setExposedHeaders(
             List.of(
                 "WWW-Authenticate"
             )
         );
 
+
+        /*
+         * Los JWT se envían en Authorization,
+         * no mediante cookies.
+         */
         configuration.setAllowCredentials(
             false
         );
+
 
         configuration.setMaxAge(
             3600L
         );
 
+
         UrlBasedCorsConfigurationSource source =
             new UrlBasedCorsConfigurationSource();
+
 
         source.registerCorsConfiguration(
             "/**",
             configuration
         );
 
+
         return source;
     }
 
 
+    /*
+     * ==============================
+     * JWT AUTHORITIES
+     * ==============================
+     */
     @Bean
     public JwtAuthenticationConverter
         jwtAuthenticationConverter() {
 
         /*
+         * Claim:
+         *
          * scp
          *
-         * Consultas.Leer
+         * Consultas.leer
          *
          * ↓
          *
-         * SCOPE_Consultas.Leer
+         * SCOPE_Consultas.leer
          */
         JwtGrantedAuthoritiesConverter
             scopesConverter =
                 new JwtGrantedAuthoritiesConverter();
 
+
         scopesConverter
             .setAuthoritiesClaimName(
                 "scp"
             );
+
 
         scopesConverter
             .setAuthorityPrefix(
@@ -425,6 +510,8 @@ public class SecurityConfig {
 
 
         /*
+         * Claim:
+         *
          * roles
          *
          * Admin
@@ -437,10 +524,12 @@ public class SecurityConfig {
             rolesConverter =
                 new JwtGrantedAuthoritiesConverter();
 
+
         rolesConverter
             .setAuthoritiesClaimName(
                 "roles"
             );
+
 
         rolesConverter
             .setAuthorityPrefix(
@@ -449,7 +538,7 @@ public class SecurityConfig {
 
 
         /*
-         * Conservamos simultáneamente:
+         * Conservamos al mismo tiempo:
          *
          * SCOPE_...
          * ROLE_...
@@ -466,10 +555,12 @@ public class SecurityConfig {
             authenticationConverter =
                 new JwtAuthenticationConverter();
 
+
         authenticationConverter
             .setJwtGrantedAuthoritiesConverter(
                 authoritiesConverter
             );
+
 
         return authenticationConverter;
     }

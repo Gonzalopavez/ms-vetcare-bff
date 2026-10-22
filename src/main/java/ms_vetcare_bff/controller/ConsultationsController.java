@@ -17,21 +17,29 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+
 @RestController
 @RequestMapping("/api/consultations")
 public class ConsultationsController {
 
     private final ConsultationsClient consultationsClient;
 
+
     public ConsultationsController(
             ConsultationsClient consultationsClient
     ) {
 
         this.consultationsClient =
-            consultationsClient;
+                consultationsClient;
     }
 
 
+    /**
+     * Lista las consultas.
+     *
+     * También reenvía los filtros opcionales:
+     * status, from y to.
+     */
     @GetMapping
     public ResponseEntity<String> getConsultations(
             @RequestParam
@@ -41,13 +49,16 @@ public class ConsultationsController {
     ) {
 
         return consultationsClient
-            .getConsultations(
-                params,
-                authentication
-            );
+                .getConsultations(
+                        params,
+                        authentication
+                );
     }
 
 
+    /**
+     * Obtiene una consulta específica.
+     */
     @GetMapping("/{id}")
     public ResponseEntity<String> getConsultationById(
             @PathVariable Long id,
@@ -56,13 +67,16 @@ public class ConsultationsController {
     ) {
 
         return consultationsClient
-            .getConsultationById(
-                id,
-                authentication
-            );
+                .getConsultationById(
+                        id,
+                        authentication
+                );
     }
 
 
+    /**
+     * Crea una nueva consulta.
+     */
     @PostMapping
     public ResponseEntity<String> createConsultation(
             @RequestBody String body,
@@ -71,13 +85,25 @@ public class ConsultationsController {
     ) {
 
         return consultationsClient
-            .createConsultation(
-                body,
-                authentication
-            );
+                .createConsultation(
+                        body,
+                        authentication
+                );
     }
 
 
+    /**
+     * Cambia el estado de una consulta.
+     *
+     * Ejemplo:
+     *
+     * PUT /api/consultations/2/status
+     *
+     * Body:
+     * {
+     *   "status": "CONFIRMADA"
+     * }
+     */
     @PutMapping("/{id}/status")
     public ResponseEntity<String> updateStatus(
             @PathVariable Long id,
@@ -88,10 +114,10 @@ public class ConsultationsController {
     ) {
 
         return consultationsClient
-            .updateStatus(
-                id,
-                body,
-                authentication
-            );
+                .updateStatus(
+                        id,
+                        body,
+                        authentication
+                );
     }
 }

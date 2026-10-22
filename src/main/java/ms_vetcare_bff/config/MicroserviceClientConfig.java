@@ -7,8 +7,10 @@ import org.springframework.context.annotation.Configuration;
 
 import org.springframework.web.client.RestClient;
 
+
 @Configuration
 public class MicroserviceClientConfig {
+
 
     @Bean(name = "consultationsRestClient")
     public RestClient consultationsRestClient(
@@ -17,9 +19,9 @@ public class MicroserviceClientConfig {
     ) {
 
         return RestClient
-            .builder()
-            .baseUrl(baseUrl)
-            .build();
+                .builder()
+                .baseUrl(baseUrl)
+                .build();
     }
 
 
@@ -30,8 +32,21 @@ public class MicroserviceClientConfig {
     ) {
 
         return RestClient
-            .builder()
-            .baseUrl(baseUrl)
-            .build();
+                .builder()
+                .baseUrl(baseUrl)
+                .build();
+    }
+
+
+    @Bean(name = "auditRestClient")
+    public RestClient auditRestClient(
+            @Value("${vetcare.services.audit.base-url}")
+            String baseUrl
+    ) {
+
+        return RestClient
+                .builder()
+                .baseUrl(baseUrl)
+                .build();
     }
 }
